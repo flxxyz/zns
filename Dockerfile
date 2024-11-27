@@ -20,4 +20,4 @@ COPY ./web ./web
 
 EXPOSE 443
 
-ENTRYPOINT ["doh"]
+ENTRYPOINT ["/app/doh"]
