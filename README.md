@@ -1,13 +1,13 @@
-# ZNS - Simple DoH server in Go
+# Simple DoH server in Go
 
 ## Install
 
 ```bash
-go install github.com/taoso/zns/cmd/zns@latest
+go install github.com/flxxyz/doh/cmd/doh@latest
 ```
 
 ## Run
 
 ```bash
-zns -free -tls-hosts zns.example.org -root /var/www/html
+doh -free -tls-hosts doh.example.org -root /var/www/html
 ```

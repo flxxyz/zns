@@ -8,30 +8,47 @@
       minimum-scale=1,
       width=device-width,
       height=device-height">
-    <meta name="description" content="ZNS">
+    <meta name="description" content="DoH - Private DNS">
     <meta name="referrer" content="same-origin">
-    <link rel="stylesheet" href="style.css">
+    <style>
+      #tickets {
+        border-top: dashed 1px gray;
+      }
+
+      #tickets tr {
+        border-bottom: 1px solid gray;
+      }
+
+      #tickets th {
+        text-align: right;
+      }
+
+      #qr {
+        width: 128px;
+      }
+
+      #qr-msg {
+        margin: 1em 0;
+      }
+    </style>
   </head>
   <body>
-    <h1>ZNS.nu.mk</h1>
     <dl>
       <dt>🔒保护隐私</dt>
-      <dd>仅保存订单号、余额等必要信息，不记录 DNS 查询行为。</dd>
+      <dd><s>仅保存订单号、余额等必要信息，</s>不记录 DNS 查询行为。</dd>
       <dt>🌐智能解析</dt>
       <dd>基于 DoH + EDNS Client Subnet (ECS) 技术，海外无污染，国内无延迟。</dd>
-      <dt>👨‍💻开源社区</dt>
-      <dd>代码全部<a href="https://github.com/taoso/zns">开源</a>，MIT 授权协议，自由使用。</dd>
-      <dt>💰按量付费</dt>
-      <dd>一毛钱 100MB，<span style="color:red;">按自然月清零！</span></dd>
+      <dt><s>💰按量付费</s></dt>
+      <dd><s>一毛钱 100MB，<span style="color:red;">按自然月清零！</span></s></dd>
     </dl>
-    <input id="cents" type="number" placeholder="金额(角)">
-    <button id="pay">支付宝付款</button>
+    <input id="cents" type="number" placeholder="金额(角)" disabled="disabled">
+    <button id="pay" disabled="disabled"><s>支付宝付款</s></button>
     <div id="qr-msg"></div>
     <div id="qr"></div>
     <table id="tickets" style="display:none;">
       <caption>最近购买记录</caption>
     </table>
   </body>
-  <script src="qrcode.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery.qrcode@1.0.3/jquery.qrcode.min.js"></script>
   <script src="app.js"></script>
 </html>

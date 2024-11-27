@@ -1,0 +1,17 @@
+[Unit]
+Description=doh service
+After=network.target
+Requires=doh-tcp.socket doh-udp.socket
+
+[Service]
+LimitNOFILE=10240
+EnvironmentFile=/usr/local/etc/doh/env
+ExecStart=/usr/local/bin/doh -root /var/lib/doh/www -tls-hosts doh.example.org -db /var/lib/doh/doh.db
+ExecReload=/bin/kill -HUP $MAINPID
+User=www-data
+Group=www-data
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

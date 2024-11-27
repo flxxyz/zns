@@ -1,1 +1,3 @@
-cmd/zns/zns
+cmd/doh/doh
+./doh
+.idea/

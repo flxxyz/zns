@@ -1,4 +1,4 @@
-package zns
+package handler
 
 import (
 	"testing"

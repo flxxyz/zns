@@ -1,23 +1,83 @@
-package zns
+package handler
 
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
+	"github.com/flxxyz/doh/ticket"
 	"io"
-	"net"
 	"net/http"
 	"net/netip"
+	"slices"
+	"sync"
+	"time"
 
 	"github.com/miekg/dns"
 )
 
-type Handler struct {
-	Upstream string
-	Repo     TicketRepo
-	AltSvc   string
+type Answer struct {
+	Result  []byte
+	Latency int64
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// Query sends a DNS query to the upstreams and returns the fastest answer.
+func Query(upstreams []string, question []byte) (*Answer, error) {
+	if len(upstreams) == 0 {
+		return nil, errors.New("no upstream")
+	}
+
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	wg.Add(len(upstreams))
+	answers := make([]*Answer, 0, len(upstreams))
+	for _, upstream := range upstreams {
+		go func() {
+			defer wg.Done()
+			stime := time.Now()
+			resp, err := http.Post(upstream, "application/dns-message", bytes.NewReader(question))
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
+
+			answer, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return
+			}
+
+			defer func() {
+				latency := time.Now().Sub(stime).Milliseconds()
+				mu.Lock()
+				defer mu.Unlock()
+				answers = append(answers, &Answer{Result: answer, Latency: latency})
+			}()
+		}()
+	}
+	wg.Wait()
+
+	if len(answers) == 0 {
+		return nil, errors.New("no answer")
+	}
+
+	answer := slices.MinFunc(answers, func(i, j *Answer) int {
+		if i.Latency < j.Latency {
+			return -1
+		} else if i.Latency > j.Latency {
+			return 1
+		}
+		return 0
+	})
+
+	return answer, nil
+}
+
+type DoHHandler struct {
+	Upstreams    []string
+	TaxCollector ticket.TaxCollector
+	AltSvc       string
+}
+
+func (h *DoHHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.AltSvc != "" {
 		w.Header().Set("Alt-Svc", h.AltSvc)
 	}
@@ -28,7 +88,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ts, err := h.Repo.List(token, 1)
+	ts, err := h.TaxCollector.List(token, 1)
 	if err != nil {
 		http.Error(w, "invalid token", http.StatusInternalServerError)
 		return
@@ -90,7 +150,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		ecs.SourceNetmask = uint8(bits)
 		p := netip.PrefixFrom(addr, bits)
-		ecs.Address = net.IP(p.Masked().Addr().AsSlice())
+		ecs.Address = p.Masked().Addr().AsSlice()
 		opt.Option = append(opt.Option, ecs)
 		m.Extra = []dns.RR{opt}
 	}
@@ -100,24 +160,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := http.Post(h.Upstream, "application/dns-message", bytes.NewReader(question))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	answer, err := io.ReadAll(resp.Body)
+	answer, err := Query(h.Upstreams, question)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err = h.Repo.Cost(token, len(question)+len(answer)); err != nil {
+	if err = h.TaxCollector.Cost(token, len(question)+len(answer.Result)); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	w.Header().Add("content-type", "application/dns-message")
-	w.Write(answer)
+	w.Write(answer.Result)
 }
